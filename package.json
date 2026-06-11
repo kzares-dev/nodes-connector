@@ -1,6 +1,6 @@
 {
   "name": "nodes-connector",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Framework-agnostic core and React bindings for rendering node boards with many-to-many connectors.",
   "type": "module",
   "license": "MIT",
