@@ -4,8 +4,27 @@
   "description": "Framework-agnostic core and React bindings for rendering node boards with many-to-many connectors.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://kzares-dev.github.io/nodes-connector/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kzares-dev/nodes-connector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kzares-dev/nodes-connector/issues"
+  },
+  "keywords": [
+    "nodes",
+    "graph",
+    "flowchart",
+    "diagram",
+    "connectors",
+    "react",
+    "typescript",
+    "storybook"
+  ],
   "files": [
-    "dist"
+    "dist",
+    "docs/images"
   ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -40,6 +59,7 @@
     "typecheck": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
+    "screenshots:docs": "node scripts/capture-docs-screenshots.mjs",
     "pack:check": "npm pack --dry-run",
     "test": "npm run typecheck && npm run build"
   },
@@ -55,6 +75,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "playwright": "^1.60.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "storybook": "^10.4.3",

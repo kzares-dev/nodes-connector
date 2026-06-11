@@ -2,12 +2,39 @@
 
 `nodes-connector` is an npm package for building node boards, geometric nodes, and many-to-many connectors.
 
+![nodes-connector geometric nodes](https://raw.githubusercontent.com/kzares-dev/nodes-connector/main/docs/images/geometric-nodes.png)
+
 The package is split into two layers:
 
 - `nodes-connector/core`: framework-agnostic reusable logic.
 - `nodes-connector/react`: React components and bindings.
 
 The main goal is to let you save and restore a graph from an API or database, render it in React, edit it visually, and customize the UI without rewriting the graph logic.
+
+## Links
+
+- Repository: https://github.com/kzares-dev/nodes-connector
+- Interactive documentation: https://kzares-dev.github.io/nodes-connector/
+- Issues: https://github.com/kzares-dev/nodes-connector/issues
+- npm package: https://www.npmjs.com/package/nodes-connector
+
+## Screenshots
+
+### Controlled Board
+
+![Controlled board example](https://raw.githubusercontent.com/kzares-dev/nodes-connector/main/docs/images/static-board.png)
+
+### Custom Nodes
+
+![Custom nodes example](https://raw.githubusercontent.com/kzares-dev/nodes-connector/main/docs/images/custom-nodes.png)
+
+### Geometric Nodes
+
+![Geometric nodes example](https://raw.githubusercontent.com/kzares-dev/nodes-connector/main/docs/images/geometric-nodes.png)
+
+### Theme Customization
+
+![Theme customization example](https://raw.githubusercontent.com/kzares-dev/nodes-connector/main/docs/images/theme-customization.png)
 
 ## Installation
 
@@ -462,6 +489,12 @@ Open:
 http://localhost:6006/
 ```
 
+Interactive Storybook is published with GitHub Pages:
+
+```txt
+https://kzares-dev.github.io/nodes-connector/
+```
+
 Recommended sections:
 
 - `nodes-connector/Introduction`
@@ -480,13 +513,19 @@ The workflow runs on every push to `main` and:
 - uploads `storybook-static` as a GitHub Pages artifact
 - deploys it to GitHub Pages
 
+The production documentation URL is:
+
+```txt
+https://kzares-dev.github.io/nodes-connector/
+```
+
 To publish the code to GitHub for the first time:
 
 ```bash
 git init -b main
 git add .
 git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR_USER_OR_ORG/YOUR_REPOSITORY.git
+git remote add origin https://github.com/kzares-dev/nodes-connector.git
 git push -u origin main
 ```
 
@@ -506,7 +545,11 @@ npm install
 npm run typecheck
 npm run build
 npm run build:storybook
+npx playwright install chromium
+npm run screenshots:docs
 npm run test
 ```
 
 `npm run test` runs the library typecheck and build.
+
+`npm run screenshots:docs` regenerates the README/npm screenshots from the latest `storybook-static` build. Run `npx playwright install chromium` once before capturing screenshots on a new machine.
