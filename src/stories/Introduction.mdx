@@ -1,0 +1,220 @@
+import { Canvas, Meta, Source } from "@storybook/addon-docs/blocks";
+import * as BoardStories from "./Board.stories";
+
+<Meta title="nodes-connector/Introduction" />
+
+# nodes-connector
+
+`nodes-connector` is an npm package for rendering node maps and connectors. The package separates reusable logic in `nodes-connector/core` from the React layer in `nodes-connector/react`.
+
+## Installation
+
+<Source
+  language="bash"
+  code={`npm install nodes-connector
+
+import "nodes-connector/react/styles.css";`}
+/>
+
+## Main Concepts
+
+- `Board`: the main canvas. It manages viewport, nodes, connectors, pan, and zoom.
+- `Node`: defines a node inside the canvas. By default it renders as a rectangular geometry; when it receives custom children, the container keeps behavior without default visual chrome.
+- `Connector`: defines a relationship between two nodes using `from` and `to`.
+- `Element`: defines an SVG geometric node inside the canvas. It shares drag, connections, context menu, text editing, and resize behavior with `Node`.
+- `Controls`: compact navigation controls. `Board` shows them in the bottom-right corner by default when pan or zoom are enabled.
+
+## Usage 1: Data Through Props
+
+Use this approach when data comes from an API or database.
+
+<Canvas of={BoardStories.StaticProps} />
+
+<Source
+  language="tsx"
+  code={`import { Board } from "nodes-connector/react";
+import "nodes-connector/react/styles.css";
+
+const nodes = [
+  { id: "ingest", label: "Ingest API", x: 80, y: 96 },
+  { id: "queue", label: "Event Queue", x: 360, y: 96 }
+];
+
+const connections = [
+  { from: "ingest", to: "queue", label: "events" }
+];
+
+export function StaticBoard() {
+  return <Board nodes={nodes} connections={connections} />;
+}`}
+/>
+
+## Usage 2: Declarative JSX
+
+Use this approach when you prefer to declare the flow directly with components.
+
+<Canvas of={BoardStories.ChildrenApi} />
+
+<Source
+  language="tsx"
+  code={`import { Board, Connector, Node } from "nodes-connector/react";
+
+export function DeclarativeBoard() {
+  return (
+    <Board>
+      <Node id="source" label="Source" x={96} y={96} />
+      <Node id="transform" x={376} y={220}>
+        <strong>Transform</strong>
+      </Node>
+      <Connector from="source" to="transform" />
+    </Board>
+  );
+}`}
+/>
+
+## Editable Mode And Persistence
+
+When `editable` is enabled, users can move nodes and edit them through the context menu. Right click a node to add a connection, remove connections, or delete the node. To persist state, control `nodes` and `connections` from your application.
+
+<Canvas of={BoardStories.Editable} />
+
+<Source
+  language="tsx"
+  code={`function Editor() {
+  const [nodes, setNodes] = useState(initialNodes);
+  const [connections, setConnections] = useState(initialConnections);
+
+  async function save() {
+    await api.saveFlow({ nodes, connections });
+  }
+
+  return (
+    <Board
+      editable
+      nodes={nodes}
+      connections={connections}
+      onNodesChange={setNodes}
+      onConnectionsChange={setConnections}
+    />
+  );
+}`}
+/>
+
+## Custom Components As Nodes
+
+Custom components can be rendered as nodes without inheriting the default node visual chrome. When `<Node>` receives children, the container only keeps positioning and graph behavior; `className`, `contentClassName`, `style`, and `renderNode` are controlled by the consumer. Custom nodes can also use the context menu, connections, and double-click resize.
+
+<Canvas of={BoardStories.CustomNodes} />
+
+<Source
+  language="tsx"
+  code={`function CheckoutCard() {
+  return (
+    <div>
+      <strong>Checkout</strong>
+      <small>Public endpoint</small>
+    </div>
+  );
+}
+
+<Board editable>
+  <Node id="checkout" x={90} y={110} className="border border-green-300 bg-white p-3">
+    <CheckoutCard />
+  </Node>
+  <Node id="ledger" x={420} y={180} style={{ borderColor: "#93c5fd" }}>
+    <LedgerCard />
+  </Node>
+  <Connector from="checkout" to="ledger" />
+</Board>`}
+/>
+
+## Pan, Zoom, And Context Menu
+
+The board supports map navigation by dragging the background, wheel zoom, and compact bottom-right controls. To connect nodes: right click the source node, select `Add connection`, move the mouse, and left click the target node.
+
+<Canvas of={BoardStories.PhaseThreeNavigation} />
+
+<Source
+  language="tsx"
+  code={`<Board
+  editable
+  nodes={nodes}
+  connections={connections}
+  onNodesChange={setNodes}
+  onConnectionsChange={setConnections}
+  defaultViewport={{ x: 80, y: 40, zoom: 1 }}
+  minZoom={0.25}
+  maxZoom={2}
+/>`}
+/>
+
+## Creating And Editing Nodes
+
+The board has a context menu on the background. Right click an empty area and select `Add node`. The node is created at that position. Double click a node to edit its text and resize its container from the bottom-right corner. Clicking outside exits edit mode.
+
+<Canvas of={BoardStories.PhaseFourNodeCreationAndEditing} />
+
+<Source
+  language="tsx"
+  code={`function Editor() {
+  const [nodes, setNodes] = useState([
+    { id: "idea", label: "Idea", x: 180, y: 120, width: 150, height: 72 }
+  ]);
+
+  return <Board editable nodes={nodes} onNodesChange={setNodes} />;
+}`}
+/>
+
+## Geometric Nodes
+
+The package includes seven built-in shapes: `rectangle`, `circle`, `diamond`, `triangle`, `hexagon`, `pill`, and `parallelogram`. You can add them from the board context menu or declare them with `<Element />`. Each `Element` is a graph node with the same behavior as a default node: it can be dragged, connected, deleted, edited with double click, resized, and used as `from` or `to` in `Connector`.
+
+<Canvas of={BoardStories.PhaseFiveElements} />
+
+<Source
+  language="tsx"
+  code={`import { Board, Connector, Element } from "nodes-connector/react";
+
+export function GeometryBoard() {
+  return (
+    <Board editable>
+      <Element id="input" type="parallelogram" x={110} y={120} width={128} height={64} label="Input" />
+      <Element id="process" type="rectangle" x={330} y={120} width={128} height={64} label="Process" />
+      <Element id="decision" type="diamond" x={550} y={110} width={104} height={88} label="OK?" />
+      <Connector from="input" to="process" />
+      <Connector from="process" to="decision" />
+    </Board>
+  );
+}`}
+/>
+
+## Most Used Props
+
+| Prop | Type | Usage |
+| --- | --- | --- |
+| `nodes` | `NodeRenderItem[]` | Controlled node state. |
+| `connections` | `ConnectionData[]` | Controlled connection state. |
+| `elements` | `ElementRenderItem[]` | Controlled geometric node state. |
+| `defaultNodes` | `NodeRenderItem[]` | Initial uncontrolled nodes. |
+| `defaultConnections` | `ConnectionData[]` | Initial uncontrolled connections. |
+| `defaultElements` | `ElementRenderItem[]` | Initial uncontrolled geometric nodes. |
+| `editable` | `boolean` | Enables drag and node context menus. |
+| `defaultViewport` | `{ x, y, zoom }` | Initial map position and zoom. |
+| `pannable` | `boolean` | Allows map movement by dragging the background. |
+| `zoomable` | `boolean` | Allows wheel zoom. |
+| `showNavigationControls` | `boolean` | Shows compact controls in the bottom-right corner. |
+| `onNodesChange` | `(nodes) => void` | Callback for persisting node changes. |
+| `onConnectionsChange` | `(connections) => void` | Callback for persisting connection changes. |
+| `onElementsChange` | `(elements) => void` | Callback for persisting geometric node changes. |
+
+## Advanced Customization
+
+The `nodes-connector/Customization` section includes recipes for:
+
+- `renderNode`, `renderElement`, and `renderConnection`.
+- `shapes` for registering custom figures.
+- `contextActions` and `renderContextMenu`.
+- `useBoard` for external toolbars.
+- `validators` for business rules.
+- CSS variables for themes.
+- core utilities such as `serializeSnapshot`, `deserializeSnapshot`, and `applyGridLayout`.
