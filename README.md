@@ -150,6 +150,74 @@ You can also declare the board with JSX components:
 </Board>
 ```
 
+## React Native Usage
+
+`nodes-connector` also exposes a React Native entrypoint:
+
+```tsx
+import { Board, Connector, Element, Node } from "nodes-connector/react-native";
+```
+
+Install the native peer dependencies in your app:
+
+```bash
+npm install react-native-svg
+```
+
+For Expo projects:
+
+```bash
+npx expo install react-native-svg
+```
+
+Basic usage:
+
+```tsx
+import { useState } from "react";
+import { Board } from "nodes-connector/react-native";
+
+const initialNodes = [
+  { id: "app", label: "App", x: 80, y: 100 },
+  { id: "api", label: "API", x: 320, y: 180 }
+];
+
+const initialConnections = [{ from: "app", to: "api" }];
+
+export function NativeFlow() {
+  const [nodes, setNodes] = useState(initialNodes);
+  const [connections, setConnections] = useState(initialConnections);
+
+  return (
+    <Board
+      editable
+      nodes={nodes}
+      connections={connections}
+      onNodesChange={setNodes}
+      onConnectionsChange={setConnections}
+      style={{ flex: 1 }}
+    />
+  );
+}
+```
+
+Declarative usage works too:
+
+```tsx
+<Board editable>
+  <Node id="start" label="Start" x={80} y={120} />
+  <Element id="decision" type="diamond" label="OK?" x={300} y={110} />
+  <Connector from="start" to="decision" />
+</Board>
+```
+
+React Native behavior differs from web where the platform differs:
+
+- long press a node to start a connection
+- tap another node to finish the connection
+- long press the board background to add a node
+- drag the board background to pan
+- use the exposed `useBoard()` hook to build native controls
+
 ## Editing Interactions
 
 When `editable` is enabled:

@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     dts({
       entryRoot: resolve(__dirname, "src"),
-      include: ["src/index.ts", "src/core", "src/react", "src/styles.d.ts"],
+      include: ["src/index.ts", "src/core", "src/react", "src/react-native", "src/styles.d.ts"],
       exclude: ["src/**/*.stories.*", "src/stories/**", ".storybook/**", "vite.config.ts"],
       beforeWriteFile: (filePath, content) => {
         const distRoot = resolve(__dirname, "dist");
@@ -31,12 +31,13 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, "src/index.ts"),
         "core/index": resolve(__dirname, "src/core/index.ts"),
-        "react/index": resolve(__dirname, "src/react/index.ts")
+        "react/index": resolve(__dirname, "src/react/index.ts"),
+        "react-native/index": resolve(__dirname, "src/react-native/index.ts")
       },
       formats: ["es", "cjs"]
     },
     rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime"],
+      external: ["react", "react-dom", "react/jsx-runtime", "react-native", "react-native-svg"],
       output: {
         assetFileNames: (assetInfo) =>
           assetInfo.name?.endsWith(".css") ? "react/styles.css" : "assets/[name][extname]"
