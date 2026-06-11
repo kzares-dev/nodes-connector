@@ -218,6 +218,14 @@ React Native behavior differs from web where the platform differs:
 - drag the board background to pan
 - use the exposed `useBoard()` hook to build native controls
 
+There is a runnable Expo demo in `examples/native-demo`:
+
+```bash
+cd examples/native-demo
+npm install
+npx expo start --host lan --port 8082
+```
+
 ## Editing Interactions
 
 When `editable` is enabled:
