@@ -1,0 +1,397 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #111827;
+  background: #eef2f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-right: 1px solid #d8dee8;
+  background: #f8fafc;
+  overflow: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 2px 2px;
+}
+
+.brand svg {
+  color: #2563eb;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.brand p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.panel {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+select {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  color: #111827;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  outline: none;
+}
+
+select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.segmented button,
+.transport button {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.segmented button.is-active,
+.transport button.primary {
+  color: #ffffff;
+  border-color: #2563eb;
+  background: #2563eb;
+}
+
+.transport {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.progress {
+  display: grid;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+progress {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+}
+
+progress::-webkit-progress-bar {
+  background: #e2e8f0;
+}
+
+progress::-webkit-progress-value {
+  background: #2563eb;
+}
+
+.step-panel {
+  align-content: start;
+}
+
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-title svg {
+  color: #2563eb;
+}
+
+.step-title h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.step-panel p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.legend {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-current {
+  background: #f97316;
+}
+
+.legend-frontier {
+  background: #38bdf8;
+}
+
+.legend-visited {
+  background: #94a3b8;
+}
+
+.legend-path {
+  background: #22c55e;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  background: #f1f5f9;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #d8dee8;
+  background: #ffffff;
+}
+
+.toolbar h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.eyebrow,
+.statbar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.statbar {
+  display: flex;
+  gap: 10px;
+}
+
+.statbar span {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d8dee8;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.nodes-connector-board {
+  --nodes-connector-bg: #f8fafc;
+  --nodes-connector-grid: #e2e8f0;
+  --nodes-connector-node-bg: transparent;
+  --nodes-connector-node-stroke: transparent;
+  --nodes-connector-text: #0f172a;
+  --nodes-connector-connection: #94a3b8;
+  height: 100%;
+}
+
+.nodes-connector-node.is-default {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.nodes-connector-node.is-default .nodes-connector-node-content {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+
+.graph-node {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  border: 2px solid #64748b;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.graph-node-id {
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.graph-node-distance {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.graph-node-frontier {
+  border-color: #0284c7;
+  background: #e0f2fe;
+}
+
+.graph-node-current {
+  border-color: #f97316;
+  background: #ffedd5;
+  transform: scale(1.04);
+}
+
+.graph-node-visited {
+  border-color: #64748b;
+  background: #f1f5f9;
+}
+
+.graph-node-target {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.graph-node-path {
+  border-color: #16a34a;
+  background: #dcfce7;
+}
+
+.graph-edge {
+  pointer-events: none;
+  stroke: #94a3b8;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke 180ms ease, stroke-width 180ms ease;
+}
+
+.graph-edge-shadow {
+  stroke: rgba(15, 23, 42, 0.1);
+  stroke-width: 9;
+}
+
+.graph-edge-active {
+  stroke: #f97316;
+  stroke-width: 4;
+}
+
+.graph-edge-visited {
+  stroke: #64748b;
+}
+
+.graph-edge-path {
+  stroke: #16a34a;
+  stroke-width: 5;
+}
+
+.graph-edge-label {
+  fill: #475569;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 5px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.graph-edge-label-active,
+.graph-edge-label-path {
+  fill: #0f172a;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .sidebar {
+    max-height: 46vh;
+    border-right: 0;
+    border-bottom: 1px solid #d8dee8;
+  }
+
+  .toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
