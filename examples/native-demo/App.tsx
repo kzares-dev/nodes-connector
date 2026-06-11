@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Board, Element, type NativeElementRenderItem, type NativeNodeRenderItem } from "nodes-connector/react-native";
 import type { ConnectionData } from "nodes-connector/core";
 
@@ -28,7 +28,7 @@ export default function App() {
   const [connections, setConnections] = useState(initialConnections);
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={styles.root}>
       <StatusBar style="dark" />
       <View style={styles.header}>
         <Text style={styles.title}>nodes-connector/react-native</Text>
@@ -55,7 +55,7 @@ export default function App() {
         <Text style={styles.footerText}>{elements.length} elements</Text>
         <Text style={styles.footerText}>{connections.length} connections</Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
