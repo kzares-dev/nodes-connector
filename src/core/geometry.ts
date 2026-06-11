@@ -1,9 +1,9 @@
-import type { ConnectorPath, NodeRect, Point, Viewport } from "./types";
+import type { ConnectorPath, GraphNode, NodeRect, Point, Viewport } from "./types";
 
-export function getNodeCenter(node: NodeRect): Point {
+export function getNodeCenter(node: NodeRect | GraphNode): Point {
   return {
-    x: node.x + node.width / 2,
-    y: node.y + node.height / 2
+    x: node.x + (node.width ?? 0) / 2,
+    y: node.y + (node.height ?? 0) / 2
   };
 }
 

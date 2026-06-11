@@ -2,8 +2,12 @@ export { Board } from "./Board";
 export type {
   BoardProps,
   BoardValidator,
+  ActionOverride,
+  BeforeConnectContext,
+  BoardGraphState,
   ContextAction,
   ContextActionContext,
+  CreateNodeContext,
   ElementRenderItem,
   RenderConnectionProps,
   RenderContextMenuProps,

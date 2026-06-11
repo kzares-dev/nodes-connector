@@ -2,8 +2,10 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useMemo, useState } from "react";
 import {
   applyGridLayout,
+  buildAdjacency,
   createHistory,
   deserializeSnapshot,
+  getConnectionWeight,
   pushHistory,
   redoHistory,
   serializeSnapshot,
@@ -46,6 +48,19 @@ const nodes: NodeRenderItem[] = [
 ];
 
 const connections: ConnectionData[] = [{ from: "lead", to: "quote", label: "qualify" }];
+
+function getNextLetterId(items: Array<{ id: string }>) {
+  const used = new Set(items.map((item) => item.id));
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  for (const letter of letters) {
+    if (!used.has(letter)) {
+      return letter;
+    }
+  }
+
+  return `N${items.length + 1}`;
+}
 
 function ExternalToolbar() {
   const board = useBoard();
@@ -365,8 +380,203 @@ export const ContextActions: Story = {
   }
 };
 
+export const NodeFactoriesAndNaming: Story = {
+  name: "Factories and naming hooks",
+  parameters: {
+    docs: {
+      source: {
+        code: `function Editor() {
+  const [nodes, setNodes] = useState([]);
+  const [elements, setElements] = useState([]);
+
+  return (
+    <Board
+      editable
+      nodes={nodes}
+      elements={elements}
+      onNodesChange={setNodes}
+      onElementsChange={setElements}
+      createId={({ graphNodes }) => getNextLetterId(graphNodes)}
+      createLabel={({ id }) => id}
+      nodeFactory={({ world, graphNodes }) => {
+        const id = getNextLetterId(graphNodes);
+
+        return {
+          id,
+          label: id,
+          x: world.x - 38,
+          y: world.y - 38,
+          width: 76,
+          height: 76,
+          meta: { source: "factory" }
+        };
+      }}
+    />
+  );
+}`
+      }
+    }
+  },
+  render: () => {
+    const [localNodes, setLocalNodes] = useState<NodeRenderItem[]>([
+      { id: "A", label: "A", x: 140, y: 130, width: 76, height: 76 },
+      { id: "B", label: "B", x: 340, y: 220, width: 76, height: 76 }
+    ]);
+    const [localElements, setLocalElements] = useState<ElementRenderItem[]>([
+      { id: "C", type: "diamond", label: "C", x: 560, y: 135, width: 82, height: 82 }
+    ]);
+
+    return (
+      <Board
+        editable
+        nodes={localNodes}
+        elements={localElements}
+        onNodesChange={setLocalNodes}
+        onElementsChange={setLocalElements}
+        createId={({ graphNodes }) => getNextLetterId(graphNodes)}
+        createLabel={({ id }) => id}
+        nodeFactory={({ world, graphNodes }) => {
+          const id = getNextLetterId(graphNodes);
+
+          return {
+            id,
+            label: id,
+            x: world.x - 38,
+            y: world.y - 38,
+            width: 76,
+            height: 76,
+            meta: { source: "factory" }
+          };
+        }}
+        elementFactory={({ type, world, graphNodes }) => {
+          const id = getNextLetterId(graphNodes);
+
+          return {
+            id,
+            type,
+            label: id,
+            x: world.x - 42,
+            y: world.y - 42,
+            width: 84,
+            height: 84,
+            fill: "#f0fdf4",
+            stroke: "#16a34a"
+          };
+        }}
+      />
+    );
+  }
+};
+
+export const ActionOverrides: Story = {
+  name: "Override native actions",
+  parameters: {
+    docs: {
+      source: {
+        code: `<Board
+  editable
+  nodes={nodes}
+  elements={elements}
+  onNodesChange={setNodes}
+  onElementsChange={setElements}
+  actionOverrides={{
+    "add-node": ({ context }) => {
+      setNodes((current) => [
+        ...current,
+        {
+          id: \`task-\${Date.now()}\`,
+          label: "Task",
+          x: context.world.x - 70,
+          y: context.world.y - 35,
+          width: 140,
+          height: 70
+        }
+      ]);
+    }
+  }}
+  hiddenActions={["add-diamond", "add-triangle", "add-hexagon"]}
+/>`
+      }
+    }
+  },
+  render: () => {
+    const [localNodes, setLocalNodes] = useState<NodeRenderItem[]>(nodes);
+    const [localElements, setLocalElements] = useState<ElementRenderItem[]>([
+      { id: "entry", type: "pill", label: "Entry", x: 140, y: 280, width: 120, height: 56 }
+    ]);
+
+    return (
+      <Board
+        editable
+        nodes={localNodes}
+        elements={localElements}
+        connections={connections}
+        onNodesChange={setLocalNodes}
+        onElementsChange={setLocalElements}
+        actionOverrides={{
+          "add-node": ({ context }) => {
+            setLocalNodes((current) => [
+              ...current,
+              {
+                id: `task-${Date.now()}`,
+                label: "Task",
+                x: context.world.x - 70,
+                y: context.world.y - 35,
+                width: 140,
+                height: 70,
+                meta: { source: "override" }
+              }
+            ]);
+          }
+        }}
+        hiddenActions={["add-diamond", "add-triangle", "add-hexagon"]}
+      />
+    );
+  }
+};
+
+export const RenderContextMenuContent: Story = {
+  name: "Custom menu content",
+  parameters: {
+    docs: {
+      source: {
+        code: `<Board
+  editable
+  nodes={nodes}
+  connections={connections}
+  renderContextMenuContent={({ actions, context }) => (
+    <>
+      {actions.map((action) => (
+        <button key={action.id} type="button" disabled={action.disabledValue} onClick={() => action.onSelect(context)}>
+          {action.label}
+        </button>
+      ))}
+    </>
+  )}
+/>`
+      }
+    }
+  },
+  render: () => (
+    <Board
+      editable
+      nodes={nodes}
+      connections={connections}
+      renderContextMenuContent={({ actions, context }) => (
+        <>
+          {actions.map((action) => (
+            <button key={action.id} type="button" disabled={action.disabledValue} onClick={() => action.onSelect(context)}>
+              {action.label}
+            </button>
+          ))}
+        </>
+      )}
+    />
+  )
+};
+
 export const RenderContextMenu: Story = {
-  name: "Custom context menu",
+  name: "Full context menu replacement",
   parameters: {
     docs: {
       source: {
@@ -375,7 +585,7 @@ export const RenderContextMenu: Story = {
   nodes={nodes}
   connections={connections}
   renderContextMenu={({ actions, context }) => (
-    <div className="my-menu">
+    <div className="my-menu" style={{ left: context.board.x, top: context.board.y }}>
       {actions.map((action) => (
         <button
           key={action.id}
@@ -398,7 +608,7 @@ export const RenderContextMenu: Story = {
       nodes={nodes}
       connections={connections}
       renderContextMenu={({ actions, context }) => (
-        <div className="story-menu">
+        <div className="story-menu story-floating-menu" style={{ left: context.board.x, top: context.board.y }}>
           {actions.map((action) => (
             <button key={action.id} type="button" disabled={action.disabledValue} onClick={() => action.onSelect(context)}>
               {action.label}
@@ -543,15 +753,139 @@ const [connections, setConnections] = useState(initialConnections);
   }
 };
 
+export const ConnectionMetadata: Story = {
+  name: "Connection metadata at creation",
+  parameters: {
+    docs: {
+      source: {
+        code: `<Board
+  editable
+  nodes={nodes}
+  connections={connections}
+  onConnectionsChange={setConnections}
+  onBeforeConnect={({ connection, fromRect, toRect }) => {
+    const weight = Math.round(Math.hypot(toRect.x - fromRect.x, toRect.y - fromRect.y));
+
+    return {
+      ...connection,
+      label: String(weight),
+      meta: { weight }
+    };
+  }}
+  onConnect={(connection) => console.log("inserted", connection)}
+/>`
+      }
+    }
+  },
+  render: () => {
+    const [localNodes, setLocalNodes] = useState<NodeRenderItem[]>([
+      { id: "north", label: "North", x: 140, y: 110 },
+      { id: "east", label: "East", x: 480, y: 180 },
+      { id: "south", label: "South", x: 260, y: 340 }
+    ]);
+    const [localConnections, setLocalConnections] = useState<ConnectionData[]>([{ from: "north", to: "east", label: "347", meta: { weight: 347 } }]);
+
+    return (
+      <Board
+        editable
+        nodes={localNodes}
+        connections={localConnections}
+        onNodesChange={setLocalNodes}
+        onConnectionsChange={setLocalConnections}
+        onBeforeConnect={({ connection, fromRect, toRect }) => {
+          const weight = Math.round(Math.hypot(toRect.x - fromRect.x, toRect.y - fromRect.y));
+
+          return {
+            ...connection,
+            label: String(weight),
+            meta: { weight }
+          };
+        }}
+      />
+    );
+  }
+};
+
+export const GraphChangeAdjacency: Story = {
+  name: "onGraphChange with adjacency",
+  parameters: {
+    docs: {
+      source: {
+        code: `const [adjacency, setAdjacency] = useState({});
+
+<Board
+  editable
+  nodes={nodes}
+  elements={elements}
+  connections={connections}
+  onGraphChange={({ graphNodes, connections }) => {
+    setAdjacency(
+      buildAdjacency(
+        { graphNodes, connections },
+        {
+          directed: false,
+          weight: (connection) => getConnectionWeight(connection)
+        }
+      )
+    );
+  }}
+/>`
+      }
+    }
+  },
+  render: () => {
+    const [localNodes, setLocalNodes] = useState<NodeRenderItem[]>([
+      { id: "A", label: "A", x: 120, y: 120, width: 76, height: 76 },
+      { id: "B", label: "B", x: 420, y: 120, width: 76, height: 76 }
+    ]);
+    const [localElements, setLocalElements] = useState<ElementRenderItem[]>([
+      { id: "C", type: "circle", label: "C", x: 270, y: 300, width: 76, height: 76 }
+    ]);
+    const [localConnections, setLocalConnections] = useState<ConnectionData[]>([
+      { from: "A", to: "B", label: "2", meta: { weight: 2 } },
+      { from: "B", to: "C", label: "5", meta: { weight: 5 } }
+    ]);
+    const [adjacency, setAdjacency] = useState({});
+
+    return (
+      <div className="story-shell">
+        <Board
+          editable
+          nodes={localNodes}
+          elements={localElements}
+          connections={localConnections}
+          onNodesChange={setLocalNodes}
+          onElementsChange={setLocalElements}
+          onConnectionsChange={setLocalConnections}
+          onGraphChange={({ graphNodes, connections }) => {
+            setAdjacency(
+              buildAdjacency(
+                { graphNodes, connections },
+                {
+                  directed: false,
+                  weight: (connection) => getConnectionWeight(connection)
+                }
+              )
+            );
+          }}
+        />
+        <pre className="story-json">{JSON.stringify(adjacency, null, 2)}</pre>
+      </div>
+    );
+  }
+};
+
 export const CoreUtilities: Story = {
-  name: "Core utilities: layout and serialization",
+  name: "Core utilities: layout, history, and graph helpers",
   parameters: {
     docs: {
       source: {
         code: `import {
   applyGridLayout,
+  buildAdjacency,
   createHistory,
   deserializeSnapshot,
+  getConnectionWeight,
   pushHistory,
   redoHistory,
   serializeSnapshot,
@@ -561,6 +895,10 @@ export const CoreUtilities: Story = {
 const [history, setHistory] = useState(() => createHistory(applyGridLayout(initial)));
 const snapshot = history.present;
 const serialized = serializeSnapshot(snapshot);
+const adjacency = buildAdjacency(snapshot, {
+  directed: false,
+  weight: (connection) => getConnectionWeight(connection)
+});
 
 const commitSnapshot = (nextSnapshot) => {
   setHistory((current) => pushHistory(current, nextSnapshot));
@@ -585,6 +923,10 @@ const commitSnapshot = (nextSnapshot) => {
     const [history, setHistory] = useState(() => createHistory(applyGridLayout(initial)));
     const snapshot = history.present;
     const serialized = serializeSnapshot(snapshot);
+    const adjacency = buildAdjacency(snapshot, {
+      directed: false,
+      weight: (connection) => getConnectionWeight(connection)
+    });
     const commitSnapshot = (nextSnapshot: typeof snapshot) => setHistory((current) => pushHistory(current, nextSnapshot));
 
     return (
@@ -612,6 +954,7 @@ const commitSnapshot = (nextSnapshot) => {
             Redo
           </button>
           <pre>{serialized}</pre>
+          <pre>{JSON.stringify(adjacency, null, 2)}</pre>
         </div>
       </div>
     );

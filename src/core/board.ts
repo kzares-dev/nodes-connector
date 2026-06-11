@@ -1,5 +1,26 @@
 import type { BoardSnapshot, ConnectionData, ElementData, GraphNode, HistoryState, NodeData, NodeId, Point, Size } from "./types";
 
+export type GraphSnapshot<TNodeMeta = unknown, TConnectionMeta = unknown> = {
+  nodes?: Array<NodeData<TNodeMeta>>;
+  elements?: ElementData[];
+  graphNodes?: Array<GraphNode<TNodeMeta>>;
+  connections: Array<ConnectionData<TConnectionMeta>>;
+};
+
+export type AdjacencyEntry<TConnectionMeta = unknown> = {
+  id: NodeId;
+  weight: number;
+  connection: ConnectionData<TConnectionMeta>;
+};
+
+export type AdjacencyList<TConnectionMeta = unknown> = Record<NodeId, Array<AdjacencyEntry<TConnectionMeta>>>;
+
+export type BuildAdjacencyOptions<TConnectionMeta = unknown> = {
+  directed?: boolean;
+  weight?: (connection: ConnectionData<TConnectionMeta>) => number;
+  invalidConnection?: "ignore" | "throw";
+};
+
 export function createConnectionId(from: NodeId, to: NodeId): string {
   return `${from}->${to}`;
 }
@@ -59,6 +80,14 @@ export function removeNodeConnections<TMeta>(
   return connections.filter((connection) => connection.from !== id && connection.to !== id);
 }
 
+export function getConnectionWeight(connection: ConnectionData, fallback = 1): number {
+  const meta = connection.meta as { weight?: unknown } | undefined;
+  const value = meta?.weight ?? connection.label;
+  const weight = typeof value === "number" ? value : Number(value);
+
+  return Number.isFinite(weight) ? weight : fallback;
+}
+
 export function toGraphNodes<TNodeMeta = unknown, TElementMeta = unknown>(
   nodes: Array<NodeData<TNodeMeta>>,
   elements: Array<ElementData<TElementMeta>> = []
@@ -74,6 +103,43 @@ export function toGraphNodes<TNodeMeta = unknown, TElementMeta = unknown>(
       shape: element.type
     }) as GraphNode<TNodeMeta | TElementMeta>)
   ];
+}
+
+export function buildAdjacency<TNodeMeta = unknown, TConnectionMeta = unknown>(
+  snapshot: GraphSnapshot<TNodeMeta, TConnectionMeta>,
+  options: BuildAdjacencyOptions<TConnectionMeta> = {}
+): AdjacencyList<TConnectionMeta> {
+  const directed = options.directed ?? true;
+  const graphNodes = snapshot.graphNodes ?? toGraphNodes(snapshot.nodes ?? [], snapshot.elements ?? []);
+  const nodeIds = new Set(graphNodes.map((node) => node.id));
+  const adjacency = Object.fromEntries(graphNodes.map((node) => [node.id, []])) as AdjacencyList<TConnectionMeta>;
+
+  for (const connection of snapshot.connections) {
+    if (!nodeIds.has(connection.from) || !nodeIds.has(connection.to)) {
+      if (options.invalidConnection === "throw") {
+        throw new Error(`Connection '${normalizeConnection(connection).id}' references a missing graph node.`);
+      }
+
+      continue;
+    }
+
+    const weight = options.weight?.(connection) ?? getConnectionWeight(connection);
+    adjacency[connection.from].push({
+      id: connection.to,
+      weight,
+      connection
+    });
+
+    if (!directed) {
+      adjacency[connection.to].push({
+        id: connection.from,
+        weight,
+        connection
+      });
+    }
+  }
+
+  return adjacency;
 }
 
 export function addNodeToSnapshot<TNodeMeta, TConnectionMeta>(

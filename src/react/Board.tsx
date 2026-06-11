@@ -92,6 +92,8 @@ export type ContextActionContext = {
   itemType?: "node" | "element";
   world: { x: number; y: number };
   board: { x: number; y: number };
+  nodes: NodeRenderItem[];
+  elements: ElementRenderItem[];
   graphNodes: GraphNode[];
 };
 
@@ -107,6 +109,34 @@ export type ContextAction = {
 export type RenderContextMenuProps = {
   context: ContextActionContext;
   actions: Array<ContextAction & { disabledValue: boolean }>;
+};
+
+export type CreateNodeContext = {
+  world: { x: number; y: number };
+  board: { x: number; y: number };
+  nodes: NodeRenderItem[];
+  elements: ElementRenderItem[];
+  graphNodes: GraphNode[];
+};
+
+export type ActionOverride = (args: {
+  context: ContextActionContext;
+  defaultAction: ContextAction;
+}) => void;
+
+export type BoardGraphState = {
+  nodes: NodeRenderItem[];
+  elements: ElementRenderItem[];
+  graphNodes: GraphNode[];
+  connections: ConnectionData[];
+};
+
+export type BeforeConnectContext = {
+  connection: ConnectionData;
+  fromNode: GraphNode;
+  toNode: GraphNode;
+  fromRect: NodeRect;
+  toRect: NodeRect;
 };
 
 export type BoardValidator = (snapshot: {
@@ -141,15 +171,24 @@ export type BoardProps = {
   showNavigationControls?: boolean;
   shapes?: ShapeDefinition[];
   contextActions?: ContextAction[];
+  actionOverrides?: Record<string, ActionOverride>;
+  hiddenActions?: string[];
   validators?: BoardValidator[];
+  nodeFactory?: (context: CreateNodeContext) => NodeRenderItem;
+  elementFactory?: (context: CreateNodeContext & { type: ElementKind }) => ElementRenderItem;
+  createId?: (context: { graphNodes: GraphNode[]; type: "node" | "element"; elementType?: ElementKind }) => string;
+  createLabel?: (context: { id: string; graphNodes: GraphNode[]; type: "node" | "element"; elementType?: ElementKind }) => string;
   renderNode?: (props: RenderNodeProps) => ReactNode;
   renderElement?: (props: RenderElementProps) => ReactNode;
   renderConnection?: (props: RenderConnectionProps) => ReactNode;
+  renderContextMenuContent?: (props: RenderContextMenuProps) => ReactNode;
   renderContextMenu?: (props: RenderContextMenuProps) => ReactNode;
   onNodeClick?: (node: NodeRenderItem) => void;
   onNodeDoubleClick?: (node: NodeRenderItem) => void;
   onElementClick?: (element: ElementRenderItem) => void;
   onElementDoubleClick?: (element: ElementRenderItem) => void;
+  onGraphChange?: (state: BoardGraphState) => void;
+  onBeforeConnect?: (context: BeforeConnectContext) => ConnectionData | null;
   onConnect?: (connection: ConnectionData) => void;
   onDelete?: (id: NodeId, type: "node" | "element") => void;
 };
@@ -340,15 +379,24 @@ export function Board({
   showNavigationControls = true,
   shapes = [],
   contextActions = [],
+  actionOverrides = {},
+  hiddenActions = [],
   validators = [],
+  nodeFactory,
+  elementFactory,
+  createId,
+  createLabel,
   renderNode,
   renderElement,
   renderConnection,
+  renderContextMenuContent,
   renderContextMenu,
   onNodeClick,
   onNodeDoubleClick,
   onElementClick,
   onElementDoubleClick,
+  onGraphChange,
+  onBeforeConnect,
   onConnect,
   onDelete
 }: BoardProps) {
@@ -383,6 +431,7 @@ export function Board({
     ],
     [currentElements, currentNodes]
   );
+  const hiddenActionSet = useMemo(() => new Set(hiddenActions), [hiddenActions]);
 
   const nodeMap = useMemo(() => {
     return new Map(
@@ -424,6 +473,15 @@ export function Board({
       onSnapshotError?.(errors);
     }
   }, [currentConnections, currentElements, currentNodes, onSnapshotError, validators]);
+
+  useEffect(() => {
+    onGraphChange?.({
+      nodes: currentNodes,
+      elements: currentElements,
+      graphNodes,
+      connections: currentConnections
+    });
+  }, [currentConnections, currentElements, currentNodes, graphNodes, onGraphChange]);
 
   useEffect(() => {
     if (!panState) {
@@ -592,6 +650,84 @@ export function Board({
     onViewportChange?.(nextViewport);
   }
 
+  function createDefaultId(type: "node" | "element", elementType?: ElementKind) {
+    return createId?.({ graphNodes, type, elementType }) ?? `${type}-${Date.now().toString(36)}`;
+  }
+
+  function createDefaultLabel(id: string, type: "node" | "element", elementType?: ElementKind) {
+    return createLabel?.({ id, graphNodes, type, elementType }) ?? (type === "node" ? `Node ${currentNodes.length + 1}` : undefined);
+  }
+
+  function getUniqueId(id: string) {
+    const ids = new Set(graphNodes.map((node) => node.id));
+
+    if (!ids.has(id)) {
+      return id;
+    }
+
+    let index = 2;
+    let nextId = `${id}-${index}`;
+
+    while (ids.has(nextId)) {
+      index += 1;
+      nextId = `${id}-${index}`;
+    }
+
+    onSnapshotError?.([`Duplicate id '${id}' was replaced with '${nextId}'.`]);
+    return nextId;
+  }
+
+  function createNodeContext(world: { x: number; y: number }, board: { x: number; y: number }): CreateNodeContext {
+    return {
+      world,
+      board,
+      nodes: currentNodes,
+      elements: currentElements,
+      graphNodes
+    };
+  }
+
+  function createNodeAt(world: { x: number; y: number }, board: { x: number; y: number }): NodeRenderItem {
+    const context = createNodeContext(world, board);
+    const factoryNode = nodeFactory?.(context);
+    const id = getUniqueId(factoryNode?.id ?? createDefaultId("node"));
+
+    if (factoryNode) {
+      return { ...factoryNode, id };
+    }
+
+    return {
+      id,
+      label: createDefaultLabel(id, "node"),
+      x: world.x - nodeWidth / 2,
+      y: world.y - nodeHeight / 2,
+      width: nodeWidth,
+      height: nodeHeight
+    };
+  }
+
+  function createElementAt(type: ElementKind, world: { x: number; y: number }, board: { x: number; y: number }): ElementRenderItem {
+    const context = { ...createNodeContext(world, board), type };
+    const factoryElement = elementFactory?.(context);
+    const id = getUniqueId(factoryElement?.id ?? createDefaultId("element", type));
+
+    if (factoryElement) {
+      return { ...factoryElement, id, type: factoryElement.type ?? type };
+    }
+
+    return {
+      id,
+      type,
+      label: createDefaultLabel(id, "element", type),
+      x: world.x - DEFAULT_ELEMENT_WIDTH / 2,
+      y: world.y - DEFAULT_ELEMENT_HEIGHT / 2,
+      width: DEFAULT_ELEMENT_WIDTH,
+      height: DEFAULT_ELEMENT_HEIGHT,
+      fill: "#ffffff",
+      stroke: "#64748b"
+    };
+  }
+
   function getBoardAnchor() {
     const rect = boardRef.current?.getBoundingClientRect();
 
@@ -619,46 +755,26 @@ export function Board({
 
   function addNode() {
     const rect = boardRef.current?.getBoundingClientRect();
-    const center = rect ? { x: rect.width / 2, y: rect.height / 2 } : { x: 240, y: 180 };
-    const id = `node-${Date.now().toString(36)}`;
-    const nextNode: NodeRenderItem = {
-      id,
-      label: `Node ${currentNodes.length + 1}`,
-      x: (center.x - viewport.x) / viewport.zoom - nodeWidth / 2,
-      y: (center.y - viewport.y) / viewport.zoom - nodeHeight / 2
+    const board = rect ? { x: rect.width / 2, y: rect.height / 2 } : { x: 240, y: 180 };
+    const world = {
+      x: (board.x - viewport.x) / viewport.zoom,
+      y: (board.y - viewport.y) / viewport.zoom
     };
+    const nextNode = createNodeAt(world, board);
 
     commitNodes([...currentNodes, nextNode]);
   }
 
-  function addNodeAt(position: { x: number; y: number }) {
-    const id = `node-${Date.now().toString(36)}`;
-    const nextNode: NodeRenderItem = {
-      id,
-      label: `Node ${currentNodes.length + 1}`,
-      x: position.x - nodeWidth / 2,
-      y: position.y - nodeHeight / 2,
-      width: nodeWidth,
-      height: nodeHeight
-    };
+  function addNodeAt(world: { x: number; y: number }, board = contextMenu?.board ?? { x: 0, y: 0 }) {
+    const nextNode = createNodeAt(world, board);
 
     commitNodes([...currentNodes, nextNode]);
-    setEditingItem({ id, type: "node" });
+    setEditingItem({ id: nextNode.id, type: "node" });
     setContextMenu(null);
   }
 
-  function addElementAt(type: ElementKind, position: { x: number; y: number }) {
-    const id = `element-${Date.now().toString(36)}`;
-    const nextElement: ElementRenderItem = {
-      id,
-      type,
-      x: position.x - DEFAULT_ELEMENT_WIDTH / 2,
-      y: position.y - DEFAULT_ELEMENT_HEIGHT / 2,
-      width: DEFAULT_ELEMENT_WIDTH,
-      height: DEFAULT_ELEMENT_HEIGHT,
-      fill: "#ffffff",
-      stroke: "#64748b"
-    };
+  function addElementAt(type: ElementKind, world: { x: number; y: number }, board = contextMenu?.board ?? { x: 0, y: 0 }) {
+    const nextElement = createElementAt(type, world, board);
 
     commitElements([...currentElements, nextElement]);
     setContextMenu(null);
@@ -876,9 +992,30 @@ export function Board({
     }
 
     if (connectionDraft.from !== id) {
-      const nextConnection = { from: connectionDraft.from, to: id };
-      commitConnections(upsertConnection(currentConnections, nextConnection));
-      onConnect?.(nextConnection);
+      const connection = { from: connectionDraft.from, to: id };
+      const fromNode = graphNodes.find((node) => node.id === connectionDraft.from);
+      const toNode = graphNodes.find((node) => node.id === id);
+      const fromRect = nodeMap.get(connectionDraft.from);
+      const toRect = nodeMap.get(id);
+
+      if (!fromNode || !toNode || !fromRect || !toRect) {
+        setConnectionDraft(null);
+        return;
+      }
+
+      const beforeConnectResult = onBeforeConnect?.({
+        connection,
+        fromNode,
+        toNode,
+        fromRect,
+        toRect
+      });
+      const nextConnection = beforeConnectResult === undefined ? connection : beforeConnectResult;
+
+      if (nextConnection) {
+        commitConnections(upsertConnection(currentConnections, nextConnection));
+        onConnect?.(nextConnection);
+      }
     }
 
     setConnectionDraft(null);
@@ -950,6 +1087,8 @@ export function Board({
         itemType: contextMenu.itemType,
         world: contextMenu.world,
         board: contextMenu.board,
+        nodes: currentNodes,
+        elements: currentElements,
         graphNodes
       }
     : null;
@@ -964,8 +1103,20 @@ export function Board({
           id: "add-node",
           label: "Add node",
           scope: "board",
-          onSelect: (context) => addNodeAt(context.world)
-        }
+          onSelect: (context) => addNodeAt(context.world, context.board)
+        },
+        ...ELEMENT_KINDS.map((kind) => ({
+          id: `add-${kind}`,
+          label: `Add ${kind}`,
+          scope: "board" as const,
+          onSelect: (context: ContextActionContext) => addElementAt(kind, context.world, context.board)
+        })),
+        ...shapes.map((shape) => ({
+          id: `add-${shape.type}`,
+          label: `Add ${shape.type}`,
+          scope: "board" as const,
+          onSelect: (context: ContextActionContext) => addElementAt(shape.type, context.world, context.board)
+        }))
       ];
     }
 
@@ -991,12 +1142,24 @@ export function Board({
         onSelect: (context) => context.itemId && deleteItem(context.itemId)
       }
     ];
-  }, [activeMenuConnections.length, contextMenu]);
+  }, [activeMenuConnections.length, contextMenu, shapes]);
   const menuActions = menuContext
-    ? [...internalActions, ...contextActions.filter((action) => action.scope === menuContext.scope)].map((action) => ({
-        ...action,
-        disabledValue: action.disabled?.(menuContext) ?? false
-      }))
+    ? [...internalActions, ...contextActions.filter((action) => action.scope === menuContext.scope)]
+        .filter((action) => !hiddenActionSet.has(action.id))
+        .map((action) => {
+          const override = actionOverrides[action.id];
+          const nextAction = override
+            ? {
+                ...action,
+                onSelect: (context: ContextActionContext) => override({ context, defaultAction: action })
+              }
+            : action;
+
+          return {
+            ...nextAction,
+            disabledValue: nextAction.disabled?.(menuContext) ?? false
+          };
+        })
     : [];
   const draftPath = useMemo(() => {
     if (!connectionDraft) {
@@ -1226,7 +1389,9 @@ export function Board({
           })}
         </div>
 
-        {contextMenu && menuContext && renderContextMenu ? (
+        {contextMenu && menuContext && renderContextMenu ? renderContextMenu({ context: menuContext, actions: menuActions }) : null}
+
+        {contextMenu && menuContext && renderContextMenuContent ? (
           <div
             className="nodes-connector-context-menu"
             style={{ left: contextMenu.board.x, top: contextMenu.board.y }}
@@ -1234,11 +1399,11 @@ export function Board({
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            {renderContextMenu({ context: menuContext, actions: menuActions })}
+            {renderContextMenuContent({ context: menuContext, actions: menuActions })}
           </div>
         ) : null}
 
-        {contextMenu?.type === "item" && contextMenu.itemId && !renderContextMenu ? (
+        {contextMenu?.type === "item" && contextMenu.itemId && !renderContextMenu && !renderContextMenuContent ? (
           <div
             className="nodes-connector-context-menu"
             style={{ left: contextMenu.board.x, top: contextMenu.board.y }}
@@ -1246,22 +1411,24 @@ export function Board({
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            {menuActions.map((action) => (
-              <button
-                key={action.id}
-                type="button"
-                role="menuitem"
-                className={action.danger ? "is-danger" : undefined}
-                disabled={action.disabledValue}
-                onClick={() => {
-                  if (menuContext) {
-                    action.onSelect(menuContext);
-                  }
-                }}
-              >
-                {action.label}
-              </button>
-            ))}
+            {menuActions
+              .filter((action) => action.id === "add-node" || !action.id.startsWith("add-"))
+              .map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  role="menuitem"
+                  className={action.danger ? "is-danger" : undefined}
+                  disabled={action.disabledValue}
+                  onClick={() => {
+                    if (menuContext) {
+                      action.onSelect(menuContext);
+                    }
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
             {activeMenuConnections.map((connection) => {
               const normalized = normalizeConnection(connection);
 
@@ -1283,7 +1450,7 @@ export function Board({
           </div>
         ) : null}
 
-        {contextMenu?.type === "board" && !renderContextMenu ? (
+        {contextMenu?.type === "board" && !renderContextMenu && !renderContextMenuContent ? (
           <div
             className="nodes-connector-context-menu nodes-connector-board-menu"
             style={{ left: contextMenu.board.x, top: contextMenu.board.y }}
@@ -1291,37 +1458,49 @@ export function Board({
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            {menuActions.map((action) => (
-              <button
-                key={action.id}
-                type="button"
-                role="menuitem"
-                className={action.danger ? "is-danger" : undefined}
-                disabled={action.disabledValue}
-                onClick={() => {
-                  if (menuContext) {
-                    action.onSelect(menuContext);
-                  }
-                }}
-              >
-                {action.label}
-              </button>
-            ))}
+            {menuActions
+              .filter((action) => action.id === "add-node" || !action.id.startsWith("add-"))
+              .map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  role="menuitem"
+                  className={action.danger ? "is-danger" : undefined}
+                  disabled={action.disabledValue}
+                  onClick={() => {
+                    if (menuContext) {
+                      action.onSelect(menuContext);
+                    }
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
             <div className="nodes-connector-element-picker" aria-label="Element shapes">
-              {ELEMENT_KINDS.map((kind) => (
-                <button key={kind} type="button" title={`Add ${kind}`} onClick={() => addElementAt(kind, contextMenu.world)}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                    {getElementIcon(kind, shapeMap.get(kind))}
-                  </svg>
-                </button>
-              ))}
-              {shapes.map((shape) => (
-                <button key={shape.type} type="button" title={`Add ${shape.type}`} onClick={() => addElementAt(shape.type, contextMenu.world)}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                    {getElementIcon(shape.type, shape)}
-                  </svg>
-                </button>
-              ))}
+              {menuActions
+                .filter((action) => action.id.startsWith("add-") && action.id !== "add-node")
+                .map((action) => {
+                  const kind = action.id.slice(4) as ElementKind;
+                  const customShape = shapeMap.get(kind);
+
+                  return (
+                    <button
+                      key={action.id}
+                      type="button"
+                      title={action.label}
+                      disabled={action.disabledValue}
+                      onClick={() => {
+                        if (menuContext) {
+                          action.onSelect(menuContext);
+                        }
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                        {getElementIcon(kind, customShape)}
+                      </svg>
+                    </button>
+                  );
+                })}
             </div>
           </div>
         ) : null}

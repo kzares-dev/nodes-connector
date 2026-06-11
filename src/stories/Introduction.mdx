@@ -1,5 +1,6 @@
 import { Canvas, Meta, Source } from "@storybook/addon-docs/blocks";
 import * as BoardStories from "./Board.stories";
+import * as CustomizationStories from "./Customization.stories";
 
 <Meta title="nodes-connector/Introduction" />
 
@@ -165,6 +166,36 @@ The board has a context menu on the background. Right click an empty area and se
 }`}
 />
 
+## Controlled Creation
+
+Use `nodeFactory` and `elementFactory` when your app needs predictable ids, synced labels, default sizes, styling, or metadata at creation time. Built-in creation paths use these factories, including the background context menu and `useBoard().addNode()`.
+
+<Canvas of={BoardStories.ControlledCreationFactories} />
+
+<Source
+  language="tsx"
+  code={`<Board
+  editable
+  nodes={nodes}
+  elements={elements}
+  onNodesChange={setNodes}
+  onElementsChange={setElements}
+  nodeFactory={({ world, graphNodes }) => {
+    const id = getNextLetterId(graphNodes);
+
+    return {
+      id,
+      label: id,
+      x: world.x - 38,
+      y: world.y - 38,
+      width: 76,
+      height: 76,
+      meta: { source: "board-menu" }
+    };
+  }}
+/>`}
+/>
+
 ## Geometric Nodes
 
 The package includes seven built-in shapes: `rectangle`, `circle`, `diamond`, `triangle`, `hexagon`, `pill`, and `parallelogram`. You can add them from the board context menu or declare them with `<Element />`. Each `Element` is a graph node with the same behavior as a default node: it can be dragged, connected, deleted, edited with double click, resized, and used as `from` or `to` in `Connector`.
@@ -188,6 +219,75 @@ export function GeometryBoard() {
 }`}
 />
 
+## Action Overrides And Menus
+
+`contextActions` appends custom actions. `actionOverrides` replaces built-in behavior while preserving native labels, disabled states, and positioning. `hiddenActions` removes actions by id. For rendering, use `renderContextMenuContent` to fill the built-in positioned wrapper, or `renderContextMenu` to replace the whole container.
+
+<Canvas of={CustomizationStories.ActionOverrides} />
+
+<Source
+  language="tsx"
+  code={`<Board
+  editable
+  actionOverrides={{
+    "add-node": ({ context }) => createAppNode(context.world),
+    "add-rectangle": ({ context }) => createAppElement("rectangle", context.world)
+  }}
+  hiddenActions={["add-diamond", "add-triangle", "add-hexagon"]}
+/>`}
+/>
+
+## Connection Metadata
+
+`onBeforeConnect` runs before a connection is inserted. Return a connection to customize it, or return `null` to cancel creation. `onConnect` receives the final inserted connection.
+
+<Canvas of={CustomizationStories.ConnectionMetadata} />
+
+<Source
+  language="tsx"
+  code={`<Board
+  editable
+  onBeforeConnect={({ connection, fromRect, toRect }) => {
+    const weight = Math.round(Math.hypot(toRect.x - fromRect.x, toRect.y - fromRect.y));
+
+    return {
+      ...connection,
+      label: String(weight),
+      meta: { weight }
+    };
+  }}
+/>`}
+/>
+
+## Unified Graph State
+
+`onGraphChange` exposes regular nodes, geometric elements, unified `graphNodes`, and connections together. The core helpers can turn that snapshot into directed or undirected adjacency data for graph algorithms.
+
+<Canvas of={CustomizationStories.GraphChangeAdjacency} />
+
+<Source
+  language="tsx"
+  code={`import { buildAdjacency, getConnectionWeight } from "nodes-connector/core";
+
+<Board
+  editable
+  nodes={nodes}
+  elements={elements}
+  connections={connections}
+  onGraphChange={({ graphNodes, connections }) => {
+    const adjacency = buildAdjacency(
+      { graphNodes, connections },
+      {
+        directed: false,
+        weight: (connection) => getConnectionWeight(connection)
+      }
+    );
+
+    updateAlgorithmState(adjacency);
+  }}
+/>`}
+/>
+
 ## Most Used Props
 
 | Prop | Type | Usage |
@@ -206,6 +306,16 @@ export function GeometryBoard() {
 | `onNodesChange` | `(nodes) => void` | Callback for persisting node changes. |
 | `onConnectionsChange` | `(connections) => void` | Callback for persisting connection changes. |
 | `onElementsChange` | `(elements) => void` | Callback for persisting geometric node changes. |
+| `nodeFactory` | `(context) => NodeRenderItem` | Creates nodes for built-in creation paths. |
+| `elementFactory` | `(context) => ElementRenderItem` | Creates elements for built-in creation paths. |
+| `createId` | `(context) => string` | Naming hook for built-in creation. |
+| `createLabel` | `(context) => string` | Label hook for built-in creation. |
+| `actionOverrides` | `Record<string, ActionOverride>` | Overrides built-in context actions by id. |
+| `hiddenActions` | `string[]` | Hides built-in or custom context actions by id. |
+| `renderContextMenuContent` | `(props) => ReactNode` | Renders content inside the native menu wrapper. |
+| `renderContextMenu` | `(props) => ReactNode` | Replaces the full context menu container. |
+| `onBeforeConnect` | `(context) => ConnectionData \| null` | Customizes or cancels connection creation. |
+| `onGraphChange` | `(state) => void` | Emits nodes, elements, unified graph nodes, and connections. |
 
 ## Advanced Customization
 
@@ -213,7 +323,9 @@ The `nodes-connector/Customization` section includes recipes for:
 
 - `renderNode`, `renderElement`, and `renderConnection`.
 - `shapes` for registering custom figures.
-- `contextActions` and `renderContextMenu`.
+- `contextActions`, `actionOverrides`, `hiddenActions`, `renderContextMenuContent`, and `renderContextMenu`.
+- `nodeFactory`, `elementFactory`, `createId`, and `createLabel`.
+- `onBeforeConnect`, `onGraphChange`, `buildAdjacency`, and `getConnectionWeight`.
 - `useBoard` for external toolbars.
 - `validators` for business rules.
 - CSS variables for themes.

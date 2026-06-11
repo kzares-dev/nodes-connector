@@ -406,6 +406,32 @@ const cloudShape = {
 
 ## Context Menu
 
+### Controlled Creation
+
+Use factories when an app owns ids, labels, dimensions, or metadata for newly created items. The right-click `Add node` action and `useBoard().addNode()` both use `nodeFactory`.
+
+```tsx
+<Board
+  editable
+  nodes={nodes}
+  elements={elements}
+  onNodesChange={setNodes}
+  nodeFactory={({ world, graphNodes }) => {
+    const id = getNextId(graphNodes);
+
+    return {
+      id,
+      label: id,
+      x: world.x - 38,
+      y: world.y - 38,
+      width: 76,
+      height: 76,
+      meta: { source: "board" }
+    };
+  }}
+/>
+```
+
 ### Custom Actions
 
 Add actions without replacing the entire menu:
@@ -423,13 +449,49 @@ const duplicateAction = {
 <Board editable contextActions={[duplicateAction]} />;
 ```
 
+### Native Action Overrides
+
+Keep the native menu layout while replacing or hiding specific built-in actions:
+
+```tsx
+<Board
+  editable
+  actionOverrides={{
+    "add-node": ({ context }) => addAppNode(context.world),
+    "add-rectangle": ({ context }) => addAppElement("rectangle", context.world)
+  }}
+  hiddenActions={["add-diamond", "add-triangle", "add-hexagon"]}
+/>
+```
+
+### Menu Content
+
+Use `renderContextMenuContent` to render only the items inside the package's positioned `.nodes-connector-context-menu` wrapper:
+
+```tsx
+<Board
+  editable
+  renderContextMenuContent={({ context, actions }) => (
+    <>
+      {actions.map((action) => (
+        <button key={action.id} disabled={action.disabledValue} onClick={() => action.onSelect(context)}>
+          {action.label}
+        </button>
+      ))}
+    </>
+  )}
+/>
+```
+
 ### Fully Custom Menu
+
+Use `renderContextMenu` when you want to replace the full menu container. Position the menu with `context.board` or your own layout:
 
 ```tsx
 <Board
   editable
   renderContextMenu={({ context, actions }) => (
-    <div className="my-menu">
+    <div className="my-menu" style={{ left: context.board.x, top: context.board.y }}>
       {actions.map((action) => (
         <button
           key={action.id}
@@ -492,7 +554,17 @@ const noDbAsSource = ({ connections }) =>
 <Board
   onNodeClick={(node) => console.log("node", node)}
   onElementClick={(element) => console.log("element", element)}
+  onBeforeConnect={({ connection, fromRect, toRect }) => {
+    const weight = Math.round(Math.hypot(toRect.x - fromRect.x, toRect.y - fromRect.y));
+
+    return {
+      ...connection,
+      label: String(weight),
+      meta: { weight }
+    };
+  }}
   onConnect={(connection) => console.log("connect", connection)}
+  onGraphChange={({ graphNodes, connections }) => saveGraph({ graphNodes, connections })}
   onDelete={(id, type) => console.log("delete", id, type)}
 />;
 ```
@@ -504,9 +576,11 @@ const noDbAsSource = ({ connections }) =>
 ```ts
 import {
   applyGridLayout,
+  buildAdjacency,
   connectSnapshot,
   createHistory,
   deserializeSnapshot,
+  getConnectionWeight,
   pushHistory,
   redoHistory,
   serializeSnapshot,
@@ -523,6 +597,10 @@ const laidOut = applyGridLayout(snapshot);
 const json = serializeSnapshot(laidOut);
 const restored = deserializeSnapshot(json);
 const history = pushHistory(createHistory(snapshot), restored);
+const adjacency = buildAdjacency(restored, {
+  directed: false,
+  weight: (connection) => getConnectionWeight(connection)
+});
 ```
 
 ## Main Props
@@ -543,13 +621,22 @@ const history = pushHistory(createHistory(snapshot), restored);
 | `renderNode` | `(props) => ReactNode` | Custom node renderer. |
 | `renderElement` | `(props) => ReactNode` | Custom geometry renderer. |
 | `renderConnection` | `(props) => ReactNode` | Custom connection renderer. |
-| `renderContextMenu` | `(props) => ReactNode` | Custom context menu renderer. |
+| `renderContextMenuContent` | `(props) => ReactNode` | Custom menu items inside the native positioned wrapper. |
+| `renderContextMenu` | `(props) => ReactNode` | Full context menu replacement. |
 | `shapes` | `ShapeDefinition[]` | Custom shape registry. |
 | `contextActions` | `ContextAction[]` | Extra context menu actions. |
+| `actionOverrides` | `Record<string, ActionOverride>` | Replace built-in action behavior by id. |
+| `hiddenActions` | `string[]` | Hide built-in or custom context menu actions by id. |
+| `nodeFactory` | `(context) => NodeRenderItem` | Creates nodes for built-in add-node paths. |
+| `elementFactory` | `(context) => ElementRenderItem` | Creates elements for built-in add-element paths. |
+| `createId` | `(context) => string` | Naming hook used by built-in creation when no factory id is provided. |
+| `createLabel` | `(context) => string` | Label hook used by built-in creation when no factory label is provided. |
 | `validators` | `BoardValidator[]` | Validation rules. |
 | `onNodesChange` | `(nodes) => void` | Node change callback. |
 | `onElementsChange` | `(elements) => void` | Geometric node change callback. |
 | `onConnectionsChange` | `(connections) => void` | Connection change callback. |
+| `onBeforeConnect` | `(context) => ConnectionData \| null` | Customize or cancel a new connection before insertion. |
+| `onGraphChange` | `(state) => void` | Receives nodes, elements, unified graph nodes, and connections after graph changes. |
 
 ## Storybook
 

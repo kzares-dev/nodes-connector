@@ -67,6 +67,46 @@ const meta = {
     defaultElements: {
       control: false,
       description: "Initial uncontrolled geometric nodes."
+    },
+    nodeFactory: {
+      control: false,
+      description: "Creates nodes for built-in add-node paths, including the board menu and useBoard().addNode."
+    },
+    elementFactory: {
+      control: false,
+      description: "Creates geometric nodes for built-in add-element actions."
+    },
+    createId: {
+      control: false,
+      description: "Naming hook used by built-in creation when no factory id is provided."
+    },
+    createLabel: {
+      control: false,
+      description: "Label hook used by built-in creation when no factory label is provided."
+    },
+    renderContextMenuContent: {
+      control: false,
+      description: "Renders menu items inside the native positioned context menu wrapper."
+    },
+    renderContextMenu: {
+      control: false,
+      description: "Replaces the full context menu container."
+    },
+    actionOverrides: {
+      control: false,
+      description: "Overrides built-in context action behavior by action id."
+    },
+    hiddenActions: {
+      control: false,
+      description: "Hides built-in or custom context actions by action id."
+    },
+    onBeforeConnect: {
+      control: false,
+      description: "Customizes or cancels a connection before it is inserted."
+    },
+    onGraphChange: {
+      control: false,
+      description: "Receives nodes, elements, unified graph nodes, and connections after graph changes."
     }
   }
 } satisfies Meta<typeof Board>;
@@ -324,6 +364,106 @@ export const PhaseFourNodeCreationAndEditing: Story = {
         connections={connections}
         onNodesChange={setNodes}
         onConnectionsChange={setConnections}
+      />
+    );
+  }
+};
+
+export const ControlledCreationFactories: Story = {
+  name: "Controlled creation factories",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "`nodeFactory`, `elementFactory`, `createId`, and `createLabel` let controlled editors create application-shaped items directly instead of normalizing them after `onNodesChange`."
+      },
+      source: {
+        code: `function getNextId(graphNodes) {
+  const used = new Set(graphNodes.map((node) => node.id));
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  return letters.split("").find((letter) => !used.has(letter)) ?? \`N\${graphNodes.length + 1}\`;
+}
+
+function Editor() {
+  const [nodes, setNodes] = useState([]);
+  const [elements, setElements] = useState([]);
+
+  return (
+    <Board
+      editable
+      nodes={nodes}
+      elements={elements}
+      onNodesChange={setNodes}
+      onElementsChange={setElements}
+      nodeFactory={({ world, graphNodes }) => {
+        const id = getNextId(graphNodes);
+
+        return {
+          id,
+          label: id,
+          x: world.x - 38,
+          y: world.y - 38,
+          width: 76,
+          height: 76
+        };
+      }}
+    />
+  );
+}`
+      }
+    }
+  },
+  render: () => {
+    const [nodes, setNodes] = useState<NodeRenderItem[]>([
+      { id: "A", label: "A", x: 160, y: 130, width: 76, height: 76 },
+      { id: "B", label: "B", x: 380, y: 240, width: 76, height: 76 }
+    ]);
+    const [elements, setElements] = useState<ElementRenderItem[]>([
+      { id: "C", type: "circle", label: "C", x: 590, y: 135, width: 76, height: 76 }
+    ]);
+
+    function getNextId() {
+      const used = new Set([...nodes, ...elements].map((item) => item.id));
+      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+      return letters.split("").find((letter) => !used.has(letter)) ?? `N${used.size + 1}`;
+    }
+
+    return (
+      <Board
+        editable
+        nodes={nodes}
+        elements={elements}
+        onNodesChange={setNodes}
+        onElementsChange={setElements}
+        nodeFactory={({ world }) => {
+          const id = getNextId();
+
+          return {
+            id,
+            label: id,
+            x: world.x - 38,
+            y: world.y - 38,
+            width: 76,
+            height: 76
+          };
+        }}
+        elementFactory={({ type, world }) => {
+          const id = getNextId();
+
+          return {
+            id,
+            type,
+            label: id,
+            x: world.x - 38,
+            y: world.y - 38,
+            width: 76,
+            height: 76,
+            fill: "#ecfeff",
+            stroke: "#0891b2"
+          };
+        }}
       />
     );
   }
